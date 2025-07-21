@@ -21,6 +21,13 @@ app.post('/absen', (req, res) => {
   });
 });
 
+app.get('/absen', (req, res) => {
+  db.query('SELECT * FROM absensi ORDER BY waktu DESC', (err, results) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json(results);
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server jalan di port ${PORT}`);
