@@ -82,59 +82,51 @@ app.get("/api/debug-users", (req, res) => {
   });
 });
 
-app.post("/api/login", (req, res) => {
-  const { username, password } = req.body;
-  // log data masuk dari frontend
-  console.log("📩 Login attempt =>", { username, password });
+app.use((req, res, next) => {
+  console.log("Headers:", req.headers);
+  console.log("Raw body:", req.body);
+  next();
+});
 
-  if (!username || !password) {
-    return res.status(400).json({ message: req.body });
-  }
+app.post("/api/login", express.json(), (req, res) => {
+  try {
+    console.log("👉 req.body:", req.body);
 
-  // pakai LOWER() biar case-insensitive
-  db.query(
-    "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
-    [username],
-    async (err, results) => {
-      if (err) {
-        console.error("❌ DB error:", err);
-        return res.status(500).json({ message: "Server error" });
-      }
+    const { username, password } = req.body;
 
-      console.log("🔎 Query results =>", results);
+    if (!username || !password) {
+      return res.status(400).json({ message: "Username & password wajib diisi" });
+    }
 
-      if (results.length === 0) {
-        return res.status(401).json({ message: "Username tidak ditemukan" });
-      }
+    db.query(
+      "SELECT * FROM users WHERE username = ?",
+      [username],
+      async (err, results) => {
+        if (err) return res.status(500).json({ message: "Server error" });
+        if (results.length === 0)
+          return res.status(401).json({ message: "Username tidak ditemukan" });
 
-      const user = results[0];
-
-      try {
+        const user = results[0];
         const match = await bcrypt.compare(password, user.password);
 
-        if (!match) {
-          console.log("⚠️ Password salah untuk user:", username);
-          return res.status(401).json({ message: "Password salah" });
-        }
+        if (!match) return res.status(401).json({ message: "Password salah" });
 
-        // Login sukses
-        console.log("✅ Login sukses:", username);
-
-        return res.json({
+        res.json({
           id: user.id,
           username: user.username,
           role: user.role,
           jam_masuk: user.jam_masuk,
           jam_pulang: user.jam_pulang,
-          jam_kerja: user.jam_kerja, // pastikan kolom ini ada di tabel
+          jam_kerja: user.jam_kerja,
         });
-      } catch (bcryptErr) {
-        console.error("❌ Bcrypt error:", bcryptErr);
-        return res.status(500).json({ message: "Server error (bcrypt)" });
       }
-    }
-  );
+    );
+  } catch (err) {
+    console.error("Login Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
+
 
 app.post("/api/absen", (req, res) => {
   try {
