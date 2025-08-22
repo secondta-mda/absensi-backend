@@ -1,22 +1,31 @@
 const mysql = require("mysql2");
-const fs = require("fs");
+
+// hanya load .env kalau di lokal (development)
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
+
+// handle ca.pem dari ENV (bukan file)
+let sslConfig = undefined;
+if (process.env.DB_CA) {
+  sslConfig = {
+    ca: process.env.DB_CA.replace(/\\n/g, "\n"), // untuk support multi-line di ENV
+  };
+}
 
 const db = mysql.createConnection({
-  host: process.env.DB_HOST, // ex: mysql-xxx.aivencloud.com
-  port: process.env.DB_PORT, // ex: 13729
-  user: process.env.DB_USER, // biasanya avnadmin
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
   password: process.env.DB_PASS,
-  database: process.env.DB_NAME, // defaultdb
-  ssl: {
-    ca: fs.readFileSync("./ca.pem"), // sertifikat dari Aiven
-  },
+  database: process.env.DB_NAME,
+  ssl: sslConfig,
 });
 
 db.connect((err) => {
   if (err) {
     console.error("❌ Koneksi ke DB gagal:", err);
   } else {
-    console.log("✅ Terkoneksi ke database MySQL Aiven");
+    console.log("✅ Terkoneksi ke database MySQL");
   }
 });
 
