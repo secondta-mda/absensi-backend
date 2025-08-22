@@ -11,28 +11,6 @@ const db = require("./db");
 const bcrypt = require("bcrypt");
 
 const app = express();
-const cloudinary = require("cloudinary").v2;
-const multer = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
-
-// Konfigurasi Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-// Konfigurasi Multer dengan Cloudinary
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: "absensi-app", // Folder di Cloudinary
-    allowed_formats: ["jpg", "jpeg", "png"],
-    transformation: [{ width: 500, height: 500, crop: "limit" }],
-  },
-});
-
-const upload = multer({ storage: storage });
 
 app.use(cors());
 app.use(express.json());
