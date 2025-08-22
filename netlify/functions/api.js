@@ -82,43 +82,6 @@ const queryWithTimeout = (query, params, timeout = 8000) => {
   });
 };
 
-app.use((error, req, res, next) => {
-  console.error('💥 Unhandled error:', error);
-  res.status(500).json({
-    success: false,
-    error: 'Internal server error',
-    message: error.message
-  });
-});
-
-// 5. Add request timeout middleware (place before routes)
-app.use((req, res, next) => {
-  // Set timeout for all requests (9 seconds, less than Netlify's 10s limit)
-  req.setTimeout(9000, () => {
-    console.log('⏰ Request timeout for:', req.url);
-    if (!res.headersSent) {
-      res.status(408).json({
-        success: false,
-        error: 'Request timeout'
-      });
-    }
-  });
-  next();
-});
-
-// 6. Database connection check
-const checkDatabaseConnection = () => {
-  return new Promise((resolve, reject) => {
-    db.query('SELECT 1', (err, results) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(results);
-      }
-    });
-  });
-};
-
 // Fungsi helper untuk menghitung selisih jam dalam format desimal
 function hitungSelisihJam(jamMasuk, jamPulang) {
   const masuk = new Date(jamMasuk);
