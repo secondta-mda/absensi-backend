@@ -8,6 +8,8 @@ const db = require('../../db');
 
 const app = express();
 
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: [
@@ -19,9 +21,12 @@ app.use(
     credentials: true, // kalau nanti pakai cookie/session
   })
 );
-app.use(express.json()); 
-app.use(express.urlencoded({ extended: true }));
-
+app.use((req, res, next) => {
+  console.log("👉 Method:", req.method);
+  console.log("👉 Content-Type:", req.headers["content-type"]);
+  console.log("👉 Parsed body:", req.body);
+  next();
+});
 // Fungsi helper untuk menghitung selisih jam dalam format desimal
 function hitungSelisihJam(jamMasuk, jamPulang) {
   const masuk = new Date(jamMasuk);
