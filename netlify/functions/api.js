@@ -19,6 +19,7 @@ app.use(
     credentials: true, // kalau nanti pakai cookie/session
   })
 );
+app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
 
 // Fungsi helper untuk menghitung selisih jam dalam format desimal
@@ -82,13 +83,7 @@ app.get("/api/debug-users", (req, res) => {
   });
 });
 
-app.use((req, res, next) => {
-  console.log("Headers:", req.headers);
-  console.log("Raw body:", req.body);
-  next();
-});
-
-app.post("/api/login", express.json(), (req, res) => {
+app.post("/api/login", (req, res) => {
   try {
     console.log("👉 req.body:", req.body);
 
