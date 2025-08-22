@@ -91,7 +91,7 @@ app.post("/api/login", (req, res) => {
     async (err, results) => {
       if (err) return res.status(500).json({ message: "Server error" });
       if (results.length === 0)
-        return res.status(401).json({ message: err.message . results });
+        return res.status(401).json({ message: "Username tidak ditemukan" });
 
       const user = results[0];
       const match = await bcrypt.compare(password, user.password);
