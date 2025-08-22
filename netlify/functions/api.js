@@ -65,6 +65,60 @@ app.use((req, res, next) => {
   next();
 });
 
+const queryWithTimeout = (query, params, timeout = 8000) => {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('Database query timeout'));
+    }, timeout);
+
+    db.query(query, params, (err, results) => {
+      clearTimeout(timeoutId);
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
+app.use((error, req, res, next) => {
+  console.error('💥 Unhandled error:', error);
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error',
+    message: error.message
+  });
+});
+
+// 5. Add request timeout middleware (place before routes)
+app.use((req, res, next) => {
+  // Set timeout for all requests (9 seconds, less than Netlify's 10s limit)
+  req.setTimeout(9000, () => {
+    console.log('⏰ Request timeout for:', req.url);
+    if (!res.headersSent) {
+      res.status(408).json({
+        success: false,
+        error: 'Request timeout'
+      });
+    }
+  });
+  next();
+});
+
+// 6. Database connection check
+const checkDatabaseConnection = () => {
+  return new Promise((resolve, reject) => {
+    db.query('SELECT 1', (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
 // Fungsi helper untuk menghitung selisih jam dalam format desimal
 function hitungSelisihJam(jamMasuk, jamPulang) {
   const masuk = new Date(jamMasuk);
@@ -92,9 +146,17 @@ function formatJamDesimal(jamDesimal) {
   }
 }
 
-// Routes
-app.get("/api", (req, res) => {
-  res.send("API Absensi aktif");
+app.use('/api', async (req, res, next) => {
+  try {
+    await checkDatabaseConnection();
+    next();
+  } catch (error) {
+    console.error('❌ Database connection failed:', error);
+    res.status(503).json({
+      success: false,
+      error: 'Database unavailable'
+    });
+  }
 });
 
 app.get("/api/test-db", (req, res) => {
@@ -496,11 +558,23 @@ app.get("/api/absensi/:user_id", (req, res) => {
 });
 
 // Endpoint untuk cek status absensi hari ini
-app.get("/api/absensi/status/:user_id", (req, res) => {
+app.get("/api/absensi/status/:user_id", async (req, res) => {
   const { user_id } = req.params;
+  
+  console.log("📊 Status check for user_id:", user_id);
+  
+  // Validate user_id
+  if (!user_id || isNaN(user_id)) {
+    console.log("❌ Invalid user_id:", user_id);
+    return res.status(400).json({ 
+      success: false, 
+      error: "Invalid user_id" 
+    });
+  }
 
-  db.query(
-    `SELECT 
+  try {
+    const results = await queryWithTimeout(
+      `SELECT 
         jam_masuk, 
         jam_pulang,
         keterangan_masuk,
@@ -513,29 +587,50 @@ app.get("/api/absensi/status/:user_id", (req, res) => {
           THEN TIME_FORMAT(TIMEDIFF(jam_pulang, jam_masuk), '%H jam %i menit')
           ELSE NULL 
         END as total_jam_kerja
-     FROM absensi 
-     WHERE user_id = ? AND DATE(jam_masuk) = CURDATE()`,
-    [user_id],
-    (err, results) => {
-      if (err) {
-        console.error("MySQL Error:", err);
-        return res
-          .status(500)
-          .json({ success: false, error: "Gagal mengambil status absensi" });
-      }
+       FROM absensi 
+       WHERE user_id = ? AND DATE(jam_masuk) = CURDATE()`,
+      [user_id],
+      5000 // 5 second timeout for this query
+    );
 
-      const status = {
-        sudah_masuk: results.length > 0 && results[0].jam_masuk !== null,
-        sudah_pulang: results.length > 0 && results[0].jam_pulang !== null,
-        data: results.length > 0 ? results[0] : null,
-      };
+    console.log("📊 Query results:", results);
 
-      return res.json({
-        success: true,
-        data: status,
+    const status = {
+      sudah_masuk: results.length > 0 && results[0].jam_masuk !== null,
+      sudah_pulang: results.length > 0 && results[0].jam_pulang !== null,
+      data: results.length > 0 ? results[0] : null,
+    };
+
+    console.log("✅ Status response:", status);
+
+    return res.json({
+      success: true,
+      data: status,
+    });
+  } catch (error) {
+    console.error("❌ Status check error:", error);
+    
+    if (error.message === 'Database query timeout') {
+      return res.status(504).json({
+        success: false,
+        error: "Database timeout"
       });
     }
-  );
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: "Gagal mengambil status absensi",
+      details: error.message
+    });
+  }
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    message: "Server is healthy",
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Export serverless function
