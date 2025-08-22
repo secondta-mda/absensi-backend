@@ -54,6 +54,25 @@ app.get("/api", (req, res) => {
   res.send("API Absensi aktif");
 });
 
+app.get("/api/test-db", (req, res) => {
+  db.query("SELECT COUNT(*) as total FROM users", (err, results) => {
+    if (err) {
+      console.error("DB Error:", err);
+      return res.status(500).json({ 
+        success: false, 
+        error: "Database connection failed",
+        details: err.message 
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: "Database connected successfully",
+      total_users: results[0].total
+    });
+  });
+});
+
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
 
