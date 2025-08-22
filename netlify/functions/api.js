@@ -8,8 +8,6 @@ const db = require('../../db');
 
 const app = express();
 
-app.use(express.json()); 
-app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin: [
@@ -21,12 +19,8 @@ app.use(
     credentials: true, // kalau nanti pakai cookie/session
   })
 );
-app.use((req, res, next) => {
-  console.log("👉 Method:", req.method);
-  console.log("👉 Content-Type:", req.headers["content-type"]);
-  console.log("👉 Parsed body:", req.body);
-  next();
-});
+app.use(express.json());
+
 // Fungsi helper untuk menghitung selisih jam dalam format desimal
 function hitungSelisihJam(jamMasuk, jamPulang) {
   const masuk = new Date(jamMasuk);
@@ -89,28 +83,27 @@ app.get("/api/debug-users", (req, res) => {
 });
 
 app.post("/api/login", (req, res) => {
-  try {
-    console.log("👉 req.body:", req.body);
+  const { username, password } = req.body;
 
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ message: "Username & password wajib diisi" });
-    }
-
-    db.query(
-      "SELECT * FROM users WHERE username = ?",
-      [username],
-      async (err, results) => {
+  db.query(
+    "SELECT * FROM users WHERE username = ?",
+    [username],
+    async (err, results) => {
+      try {
         if (err) return res.status(500).json({ message: "Server error" });
-        if (results.length === 0)
+
+        if (results.length === 0) {
           return res.status(401).json({ message: "Username tidak ditemukan" });
+        }
 
         const user = results[0];
         const match = await bcrypt.compare(password, user.password);
 
-        if (!match) return res.status(401).json({ message: "Password salah" });
+        if (!match) {
+          return res.status(401).json({ message: "Password salah" });
+        }
 
+        // Login berhasil
         res.json({
           id: user.id,
           username: user.username,
@@ -119,12 +112,12 @@ app.post("/api/login", (req, res) => {
           jam_pulang: user.jam_pulang,
           jam_kerja: user.jam_kerja,
         });
+      } catch (error) {
+        console.error("Login error:", error);
+        return res.status(500).json({ message: "Internal server error" });
       }
-    );
-  } catch (err) {
-    console.error("Login Error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
+    }
+  );
 });
 
 
