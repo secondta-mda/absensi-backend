@@ -12,7 +12,17 @@ const bcrypt = require("bcrypt");
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",    // saat development React
+      "https://absensi-mda.netlify.app",   // domain produksi React
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true, // kalau nanti pakai cookie/session
+  })
+);
 app.use(express.json());
 
 // Fungsi helper untuk menghitung selisih jam dalam format desimal
