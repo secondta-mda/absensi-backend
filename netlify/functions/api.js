@@ -9,9 +9,18 @@ const db = require('../../db');
 const app = express();
 
 // MIDDLEWARE SETUP - URUTAN SANGAT PENTING!
-// 1. First: Body parsing middleware
-app.use(express.json()); // Harus datang sebelum middleware lainnya
-app.use(express.urlencoded({ extended: true }));
+// 1. First: Body parsing middleware - PERBAIKAN DI SINI
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
+app.use(express.urlencoded({ 
+  extended: true,
+  limit: '10mb'
+}));
 
 // 2. CORS middleware
 app.use(
@@ -26,13 +35,32 @@ app.use(
   })
 );
 
-// 3. Debugging middleware - PASTIKAN INI ADA!
+// 3. Debugging middleware - TAMBAHKAN PARSING MANUAL
 app.use((req, res, next) => {
   console.log("=== INCOMING REQUEST ===");
   console.log("👉 Method:", req.method);
   console.log("👉 URL:", req.url);
   console.log("👉 Headers:", req.headers);
-  console.log("👉 Body:", req.body);
+  
+  // Jika body masih buffer, coba parse manual
+  if (Buffer.isBuffer(req.body)) {
+    try {
+      console.log("⚠️  Body masih buffer, mencoba parse manual...");
+      const bodyString = req.body.toString('utf8');
+      console.log("👉 Raw body string:", bodyString);
+      
+      if (bodyString) {
+        req.body = JSON.parse(bodyString);
+        console.log("✅ Body berhasil di-parse:", req.body);
+      }
+    } catch (parseError) {
+      console.log("❌ Gagal parse body:", parseError.message);
+      // Biarkan body sebagai buffer untuk penanganan error
+    }
+  } else {
+    console.log("👉 Body:", req.body);
+  }
+  
   console.log("========================");
   next();
 });
@@ -98,9 +126,25 @@ app.get("/api/debug-users", (req, res) => {
 });
 
 app.post("/api/login", (req, res) => {
-  console.log("🔐 Login attempt - Raw body:", req.body);
+  console.log("🔐 Login attempt - Raw body type:", typeof req.body);
   
-  const { username, password } = req.body;
+  // Handle jika body masih buffer
+  let bodyData = req.body;
+  if (Buffer.isBuffer(bodyData)) {
+    try {
+      const bodyString = bodyData.toString('utf8');
+      bodyData = JSON.parse(bodyString);
+      console.log("✅ Body di-parse manual dari buffer");
+    } catch (error) {
+      console.error("❌ Failed to parse buffer:", error);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid request format" 
+      });
+    }
+  }
+
+  const { username, password } = bodyData;
 
   // Validasi input
   if (!username || !password) {
