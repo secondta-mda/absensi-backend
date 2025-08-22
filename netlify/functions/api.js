@@ -89,27 +89,37 @@ app.post("/api/login", (req, res) => {
     "SELECT * FROM users WHERE username = ?",
     [username],
     async (err, results) => {
-      if (err) return res.status(500).json({ message: "Server error" });
-      if (results.length === 0)
-        return res.status(401).json({ message: results });
+      try {
+        if (err) return res.status(500).json({ message: "Server error" });
 
-      const user = results[0];
-      const match = await bcrypt.compare(password, user.password);
+        if (results.length === 0) {
+          return res.status(401).json({ message: "Username tidak ditemukan" });
+        }
 
-      if (!match) return res.status(401).json({ message: "Password salah" });
+        const user = results[0];
+        const match = await bcrypt.compare(password, user.password);
 
-      // Login berhasil - kirim juga jam_masuk, jam_pulang, dan jam_kerja
-      res.json({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        jam_masuk: user.jam_masuk,
-        jam_pulang: user.jam_pulang,
-        jam_kerja: user.jam_kerja, // pastikan kolom ini ada di database
-      });
+        if (!match) {
+          return res.status(401).json({ message: "Password salah" });
+        }
+
+        // Login berhasil
+        res.json({
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          jam_masuk: user.jam_masuk,
+          jam_pulang: user.jam_pulang,
+          jam_kerja: user.jam_kerja,
+        });
+      } catch (error) {
+        console.error("Login error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
     }
   );
 });
+
 
 app.post("/api/absen", (req, res) => {
   try {
