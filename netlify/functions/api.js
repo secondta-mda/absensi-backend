@@ -88,7 +88,7 @@ app.post("/api/login", (req, res) => {
   console.log("📩 Login attempt =>", { username, password });
 
   if (!username || !password) {
-    return res.status(400).json({ message: "Username & password wajib diisi", req.body });
+    return res.status(400).json({ message: req.body });
   }
 
   // pakai LOWER() biar case-insensitive
