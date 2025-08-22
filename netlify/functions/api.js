@@ -85,41 +85,57 @@ app.get("/api/debug-users", (req, res) => {
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
 
+  // log data masuk dari frontend
+  console.log("📩 Login attempt =>", { username, password });
+
+  if (!username || !password) {
+    return res.status(400).json({ message: "Username & password wajib diisi" });
+  }
+
+  // pakai LOWER() biar case-insensitive
   db.query(
-    "SELECT * FROM users WHERE username = ?",
+    "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
     [username],
     async (err, results) => {
+      if (err) {
+        console.error("❌ DB error:", err);
+        return res.status(500).json({ message: "Server error" });
+      }
+
+      console.log("🔎 Query results =>", results);
+
+      if (results.length === 0) {
+        return res.status(401).json({ message: "Username tidak ditemukan" });
+      }
+
+      const user = results[0];
+
       try {
-        if (err) return res.status(500).json({ message: "Server error" });
-
-        if (results.length === 0) {
-          return res.status(401).json({ message: "Username tidak ditemukan" });
-        }
-
-        const user = results[0];
         const match = await bcrypt.compare(password, user.password);
 
         if (!match) {
+          console.log("⚠️ Password salah untuk user:", username);
           return res.status(401).json({ message: "Password salah" });
         }
 
-        // Login berhasil
-        res.json({
+        // Login sukses
+        console.log("✅ Login sukses:", username);
+
+        return res.json({
           id: user.id,
           username: user.username,
           role: user.role,
           jam_masuk: user.jam_masuk,
           jam_pulang: user.jam_pulang,
-          jam_kerja: user.jam_kerja,
+          jam_kerja: user.jam_kerja, // pastikan kolom ini ada di tabel
         });
-      } catch (error) {
-        console.error("Login error:", error);
-        return res.status(500).json({ message: "Internal server error" });
+      } catch (bcryptErr) {
+        console.error("❌ Bcrypt error:", bcryptErr);
+        return res.status(500).json({ message: "Server error (bcrypt)" });
       }
     }
   );
 });
-
 
 app.post("/api/absen", (req, res) => {
   try {
