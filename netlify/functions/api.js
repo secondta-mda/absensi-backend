@@ -19,7 +19,7 @@ app.use(
     credentials: true, // kalau nanti pakai cookie/session
   })
 );
-app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Fungsi helper untuk menghitung selisih jam dalam format desimal
 function hitungSelisihJam(jamMasuk, jamPulang) {
