@@ -9,12 +9,14 @@ if (process.env.NODE_ENV !== "production") {
 let sslConfig = undefined;
 if (process.env.DB_CA) {
   sslConfig = {
-    ca: process.env.DB_CA.replace(/\\n/g, "\n"), // untuk support multi-line di ENV
+    ca: process.env.DB_CA.replace(/\\n/g, "\n"),
+    rejectUnauthorized: true
   };
 }
 
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
