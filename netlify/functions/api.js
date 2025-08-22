@@ -109,6 +109,18 @@ function formatJamDesimal(jamDesimal) {
   }
 }
 
+const checkDatabaseConnection = () => {
+  return new Promise((resolve, reject) => {
+    db.query('SELECT 1', (err, results) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+};
+
 app.use('/api', async (req, res, next) => {
   try {
     await checkDatabaseConnection();
