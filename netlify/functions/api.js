@@ -84,7 +84,7 @@ app.get("/api/debug-users", (req, res) => {
 
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
-
+  console.log("👉 req.body:", req.body);
   // log data masuk dari frontend
   console.log("📩 Login attempt =>", { username, password });
 
