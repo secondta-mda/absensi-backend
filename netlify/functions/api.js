@@ -8,35 +8,49 @@ const db = require('../../db');
 
 const app = express();
 
+// MIDDLEWARE SETUP - URUTAN SANGAT PENTING!
+// 1. First: Body parsing middleware
+app.use(express.json()); // Harus datang sebelum middleware lainnya
+app.use(express.urlencoded({ extended: true }));
+
+// 2. CORS middleware
 app.use(
   cors({
     origin: [
-      "http://localhost:3000",    // saat development React
-      "https://absensi-mda.netlify.app",   // domain produksi React
+      "http://localhost:3000",
+      "https://absensi-mda.netlify.app",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true, // kalau nanti pakai cookie/session
+    credentials: true,
   })
 );
-app.use(express.json());
+
+// 3. Debugging middleware - PASTIKAN INI ADA!
+app.use((req, res, next) => {
+  console.log("=== INCOMING REQUEST ===");
+  console.log("👉 Method:", req.method);
+  console.log("👉 URL:", req.url);
+  console.log("👉 Headers:", req.headers);
+  console.log("👉 Body:", req.body);
+  console.log("========================");
+  next();
+});
 
 // Fungsi helper untuk menghitung selisih jam dalam format desimal
 function hitungSelisihJam(jamMasuk, jamPulang) {
   const masuk = new Date(jamMasuk);
   const pulang = new Date(jamPulang);
   const selisihMs = pulang.getTime() - masuk.getTime();
-  const selisihJam = selisihMs / (1000 * 60 * 60); // konversi ke jam
+  const selisihJam = selisihMs / (1000 * 60 * 60);
   return selisihJam;
 }
 
-// Fungsi helper untuk mengkonversi jam ke format decimal (08:00 -> 8.0)
 function jamKeDesimal(jamString) {
   const [hours, minutes] = jamString.split(":");
   return parseInt(hours) + parseInt(minutes) / 60;
 }
 
-// Fungsi helper untuk format jam dari decimal ke string (8.5 -> "8 jam 30 menit")
 function formatJamDesimal(jamDesimal) {
   const jam = Math.floor(Math.abs(jamDesimal));
   const menit = Math.round((Math.abs(jamDesimal) - jam) * 60);
@@ -50,6 +64,7 @@ function formatJamDesimal(jamDesimal) {
   }
 }
 
+// Routes
 app.get("/api", (req, res) => {
   res.send("API Absensi aktif");
 });
@@ -83,38 +98,78 @@ app.get("/api/debug-users", (req, res) => {
 });
 
 app.post("/api/login", (req, res) => {
+  console.log("🔐 Login attempt - Raw body:", req.body);
+  
   const { username, password } = req.body;
 
+  // Validasi input
+  if (!username || !password) {
+    console.log("❌ Missing username or password");
+    return res.status(400).json({ 
+      success: false, 
+      message: "Username dan password wajib diisi" 
+    });
+  }
+
+  console.log("🔍 Searching for user:", username);
+  
   db.query(
     "SELECT * FROM users WHERE username = ?",
     [username],
     async (err, results) => {
       try {
-        if (err) return res.status(500).json({ message: "Server error" });
+        if (err) {
+          console.error("❌ Database error:", err);
+          return res.status(500).json({ 
+            success: false, 
+            message: "Server error" 
+          });
+        }
 
+        console.log("📊 Database results:", results);
+        
         if (results.length === 0) {
-          return res.status(401).json({ message: "Username tidak ditemukan" });
+          console.log("❌ User not found:", username);
+          return res.status(401).json({ 
+            success: false, 
+            message: "Username tidak ditemukan" 
+          });
         }
 
         const user = results[0];
+        console.log("👤 User found:", user.username);
+        
+        // Compare password
         const match = await bcrypt.compare(password, user.password);
+        console.log("🔑 Password match:", match);
 
         if (!match) {
-          return res.status(401).json({ message: "Password salah" });
+          console.log("❌ Invalid password for user:", username);
+          return res.status(401).json({ 
+            success: false, 
+            message: "Password salah" 
+          });
         }
 
         // Login berhasil
+        console.log("✅ Login successful for user:", username);
         res.json({
-          id: user.id,
-          username: user.username,
-          role: user.role,
-          jam_masuk: user.jam_masuk,
-          jam_pulang: user.jam_pulang,
-          jam_kerja: user.jam_kerja,
+          success: true,
+          data: {
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            jam_masuk: user.jam_masuk,
+            jam_pulang: user.jam_pulang,
+            jam_kerja: user.jam_kerja,
+          }
         });
       } catch (error) {
-        console.error("Login error:", error);
-        return res.status(500).json({ message: "Internal server error" });
+        console.error("💥 Login error:", error);
+        return res.status(500).json({ 
+          success: false, 
+          message: "Internal server error" 
+        });
       }
     }
   );
