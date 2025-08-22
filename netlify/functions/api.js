@@ -73,6 +73,15 @@ app.get("/api/test-db", (req, res) => {
   });
 });
 
+app.get("/api/debug-users", (req, res) => {
+  db.query("SELECT id, username FROM users LIMIT 5", (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ users: results });
+  });
+});
+
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
 
